@@ -25,6 +25,8 @@ const swaggerSpec = {
         { name: 'Access', description: 'Đăng ký, đăng nhập, đăng xuất, làm mới token' },
         { name: 'Product', description: 'Sản phẩm' },
         { name: 'Discount', description: 'Mã giảm giá' },
+        { name: 'Cart', description: 'Giỏ hàng' },
+        { name: 'Checkout', description: 'Thanh toán' },
     ],
     components: {
         securitySchemes: {
@@ -292,10 +294,13 @@ const swaggerSpec = {
             get: {
                 tags: ['Discount'],
                 summary: 'Sản phẩm áp dụng một mã giảm giá',
-                description: 'Handler đọc body: code, shopId, userId, limit, page.',
-                requestBody: {
-                    content: { 'application/json': { schema: { $ref: '#/components/schemas/DiscountProductsQuery' } } },
-                },
+                parameters: [
+                    { name: 'code', in: 'query', required: true, schema: { type: 'string' }, example: 'SALE10' },
+                    { name: 'shopId', in: 'query', required: true, schema: { type: 'string' }, example: '1' },
+                    { name: 'userId', in: 'query', schema: { type: 'string' }, example: '1' },
+                    { name: 'limit', in: 'query', schema: { type: 'number', default: 50 } },
+                    { name: 'page', in: 'query', schema: { type: 'number', default: 1 } },
+                ],
                 responses: { 200: { description: 'Danh sách sản phẩm' } },
             },
         },
@@ -312,12 +317,202 @@ const swaggerSpec = {
             },
             get: {
                 tags: ['Discount'],
-                summary: 'Sản phẩm theo mã giảm giá (yêu cầu đăng nhập)',
+                summary: 'Danh sách mã giảm giá của shop',
+                security: [{ ApiKeyAuth: [], ClientId: [], AccessToken: [] }],
+                parameters: [
+                    { name: 'limit', in: 'query', schema: { type: 'number', default: 50 } },
+                    { name: 'page', in: 'query', schema: { type: 'number', default: 1 } },
+                ],
+                responses: { 200: { description: 'Danh sách mã giảm giá' } },
+            },
+        },
+        '/v1/api/discount/cancel': {
+            post: {
+                tags: ['Discount'],
+                summary: 'Hủy lượt dùng mã giảm giá',
                 security: [{ ApiKeyAuth: [], ClientId: [], AccessToken: [] }],
                 requestBody: {
-                    content: { 'application/json': { schema: { $ref: '#/components/schemas/DiscountProductsQuery' } } },
+                    required: true,
+                    content: {
+                        'application/json': {
+                            schema: {
+                                type: 'object',
+                                required: ['codeId'],
+                                properties: {
+                                    codeId: { type: 'string', example: 'SALE10' },
+                                    shopId: { type: 'string', example: '1' },
+                                    userId: { type: 'string', example: '1' },
+                                },
+                            },
+                        },
+                    },
                 },
-                responses: { 200: { description: 'Danh sách sản phẩm' } },
+                responses: { 200: { description: 'Cancel discount code success' } },
+            },
+        },
+        '/v1/api/discount/{code}': {
+            delete: {
+                tags: ['Discount'],
+                summary: 'Xóa mã giảm giá của shop',
+                security: [{ ApiKeyAuth: [], ClientId: [], AccessToken: [] }],
+                parameters: [
+                    { name: 'code', in: 'path', required: true, schema: { type: 'string' }, example: 'SALE10' },
+                ],
+                responses: { 200: { description: 'Delete discount code success' } },
+            },
+        },
+        '/v1/api/cart': {
+            post: {
+                tags: ['Cart'],
+                summary: 'Thêm sản phẩm vào giỏ',
+                requestBody: {
+                    required: true,
+                    content: {
+                        'application/json': {
+                            schema: {
+                                type: 'object',
+                                required: ['userId', 'product'],
+                                properties: {
+                                    userId: { type: 'number', example: 1 },
+                                    product: {
+                                        type: 'object',
+                                        required: ['productId', 'shopId', 'quantity', 'name', 'price'],
+                                        properties: {
+                                            productId: { type: 'number', example: 1 },
+                                            shopId: { type: 'number', example: 1 },
+                                            quantity: { type: 'number', example: 1 },
+                                            name: { type: 'string', example: 'Ao thun' },
+                                            price: { type: 'number', example: 120000 },
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                },
+                responses: { 200: { description: 'Create new cart success' } },
+            },
+            delete: {
+                tags: ['Cart'],
+                summary: 'Xóa một sản phẩm khỏi giỏ',
+                requestBody: {
+                    required: true,
+                    content: {
+                        'application/json': {
+                            schema: {
+                                type: 'object',
+                                required: ['userId', 'productId'],
+                                properties: {
+                                    userId: { type: 'number', example: 1 },
+                                    productId: { type: 'number', example: 1 },
+                                },
+                            },
+                        },
+                    },
+                },
+                responses: { 200: { description: 'Delete cart item success' } },
+            },
+            get: {
+                tags: ['Cart'],
+                summary: 'Lấy giỏ hàng của user',
+                parameters: [
+                    { name: 'userId', in: 'query', required: true, schema: { type: 'number' }, example: 1 },
+                ],
+                responses: { 200: { description: 'List cart success' } },
+            },
+        },
+        '/v1/api/cart/update': {
+            post: {
+                tags: ['Cart'],
+                summary: 'Cập nhật số lượng sản phẩm trong giỏ',
+                requestBody: {
+                    required: true,
+                    content: {
+                        'application/json': {
+                            schema: {
+                                type: 'object',
+                                required: ['userId', 'shop_order_ids'],
+                                properties: {
+                                    userId: { type: 'number', example: 1 },
+                                    shop_order_ids: {
+                                        type: 'array',
+                                        items: {
+                                            type: 'object',
+                                            properties: {
+                                                shop_id: { type: 'number', example: 1 },
+                                                item_products: {
+                                                    type: 'array',
+                                                    items: {
+                                                        type: 'object',
+                                                        properties: {
+                                                            productId: { type: 'number', example: 1 },
+                                                            quantity: { type: 'number', example: 2 },
+                                                            old_quantity: { type: 'number', example: 1 },
+                                                        },
+                                                    },
+                                                },
+                                            },
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                },
+                responses: { 200: { description: 'Update cart success' } },
+            },
+        },
+        '/v1/api/checkout/review': {
+            post: {
+                tags: ['Checkout'],
+                summary: 'Xem trước đơn hàng trước khi thanh toán',
+                requestBody: {
+                    required: true,
+                    content: {
+                        'application/json': {
+                            schema: {
+                                type: 'object',
+                                required: ['cartId', 'userId', 'shop_order_ids'],
+                                properties: {
+                                    cartId: { type: 'number', example: 1 },
+                                    userId: { type: 'number', example: 1 },
+                                    shop_order_ids: {
+                                        type: 'array',
+                                        items: {
+                                            type: 'object',
+                                            properties: {
+                                                shopId: { type: 'number', example: 1 },
+                                                shop_discounts: {
+                                                    type: 'array',
+                                                    items: {
+                                                        type: 'object',
+                                                        properties: {
+                                                            codeId: { type: 'string', example: 'SALE10' },
+                                                            shopId: { type: 'number', example: 1 },
+                                                        },
+                                                    },
+                                                    example: [],
+                                                },
+                                                item_products: {
+                                                    type: 'array',
+                                                    items: {
+                                                        type: 'object',
+                                                        properties: {
+                                                            productId: { type: 'number', example: 1 },
+                                                            quantity: { type: 'number', example: 1 },
+                                                            price: { type: 'number', example: 120000 },
+                                                        },
+                                                    },
+                                                },
+                                            },
+                                        },
+                                    },
+                                },
+                            },
+                        },
+                    },
+                },
+                responses: { 200: { description: 'Checkout review success' } },
             },
         },
     },

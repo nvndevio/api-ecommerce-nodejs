@@ -250,6 +250,66 @@ class DiscountService {
         
     }
 
+    static async getDiscountAmount({ codeId, userId, shopId, products }) {
+        const foundDiscount = await checkDiscountExists({
+            model: discount,
+            filter: {
+                discount_code: codeId,
+                discount_shopId: shopId
+            }
+        })
+        if(!foundDiscount) throw new NotFoundError('Discount code not exists!')
+
+        const {
+            discount_is_active,
+            discount_max_uses,
+            discount_min_order_value,
+            discount_max_uses_per_user,
+            discount_users_used = [],
+            discount_start_date,
+            discount_end_date,
+            discount_type,
+            discount_value,
+        } = foundDiscount
+
+        if(!discount_is_active) throw new NotFoundError('Discount code is not active!')
+        if(!discount_max_uses || discount_max_uses <= 0) throw new NotFoundError('Discount are out!')
+
+        if(new Date() < new Date(discount_start_date) || new Date() > new Date(discount_end_date)) {
+            throw new NotFoundError('Discount code has expired!')
+        }
+
+        // check xem co gia tri toi thieu hay khong
+        let totalOrder = 0;
+        if(discount_min_order_value > 0) {
+            // get total order
+            totalOrder = products.reduce((acc, product) => {
+                return acc + (product.quantity * product.price)
+            }, 0)
+
+            if(totalOrder < discount_min_order_value) {
+                throw new NotFoundError(`Total order is not enough to apply discount code! ${discount_min_order_value}`)
+            }
+        }
+
+        // check xem co gia tri toi da hay khong
+        if(discount_max_uses_per_user > 0) {
+            const userUserDiscount = discount_users_used.find(user => user.userId === userId)
+            if(userUserDiscount) {
+                throw new NotFoundError('You have already used this discount code!')
+            }
+        }
+
+        //check xem discounnt nay la fixed amount hay percentage
+        const amount = discount_type === 'fixed_amount' ? discount_value : (discount_value / 100) * totalOrder;
+        
+        return {
+            totalOrder,
+            discount: amount,
+            totalPrice: totalOrder - amount
+        }
+    }
+
 }
 
 module.exports = DiscountService

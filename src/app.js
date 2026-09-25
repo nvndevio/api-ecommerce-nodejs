@@ -31,6 +31,30 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
             authDefinitionKey: 'ApiKeyAuth',
             apiKeyValue: 'dev-api-key',
         },
+        responseInterceptor: (res) => {
+            try {
+                const url = res.url || ''
+                const isAuth = url.includes('/shop/login') || url.includes('/shop/signup') || url.includes('/shop/handleRefreshToken')
+                if (!isAuth || !window.ui) return res
+
+                const raw = res.text || res.data || res.body || res.obj
+                const body = typeof raw === 'string' ? JSON.parse(raw) : raw
+                const metadata = body && body.metadata && body.metadata.metadata
+                    ? body.metadata.metadata
+                    : body && body.metadata
+                if (!metadata) return res
+
+                const shopId = metadata.shop && (metadata.shop._id || metadata.shop.id)
+                const userId = metadata.user && (metadata.user.userId || metadata.user._id)
+                const tokens = metadata.tokens || {}
+
+                if (shopId != null) window.ui.preauthorizeApiKey('ClientId', String(shopId))
+                if (userId != null) window.ui.preauthorizeApiKey('ClientId', String(userId))
+                if (tokens.accessToken) window.ui.preauthorizeApiKey('AccessToken', tokens.accessToken)
+                if (tokens.refreshToken) window.ui.preauthorizeApiKey('RefreshToken', tokens.refreshToken)
+            } catch (error) {}
+            return res
+        },
     },
 }))
 

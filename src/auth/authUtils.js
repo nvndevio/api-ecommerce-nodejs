@@ -12,6 +12,14 @@ const HEADER = {
     REFRESHTOKEN: 'x-rtoken-id'
 }
 
+const readToken = (value) => {
+    if (!value) return value
+    const token = value.toString().trim().replace(/^["']|["']$/g, '')
+    return token.toLowerCase().startsWith('bearer ') ? token.slice(7).trim() : token
+}
+
+const sameUser = (headerUserId, tokenUserId) => String(headerUserId) === String(tokenUserId)
+
 const createTokenPair = async (payload, publicKey, privateKey) => {
     try {
         // accessToken
@@ -59,16 +67,17 @@ const authentication = asyncHandler( async ( req, res, next ) => {
     if(!keyStore) throw new NotFoundError('Not found keyStore')
 
     // 3
-    const accessToken = req.headers[HEADER.AUTHORIZATION]
+    const accessToken = readToken(req.headers[HEADER.AUTHORIZATION])
     if(!accessToken) throw new AuthFailureError('Invalid request')
     
     try {
         const decode = JWT.verify(accessToken, keyStore.privateKey)
-        if(userId !== decode.userId) throw new AuthFailureError('Invalid User')
+        if(!sameUser(userId, decode.userId)) throw new AuthFailureError('Invalid User')
         req.keyStore = keyStore
         return next()
     } catch (error) {
-        throw error
+        if (error instanceof AuthFailureError) throw error
+        throw new AuthFailureError('Token không hợp lệ, hãy login lại và dùng accessToken mới')
     }
 })
 
@@ -90,31 +99,37 @@ const authenticationV2 = asyncHandler( async ( req, res, next ) => {
     if(!keyStore) throw new NotFoundError('Not found keyStore')
 
     // 3
-    if(req.headers[HEADER.REFRESHTOKEN]) {
+    const refreshHeader = readToken(req.headers[HEADER.REFRESHTOKEN])
+    const accessHeader = readToken(req.headers[HEADER.AUTHORIZATION])
+    const useRefreshToken = refreshHeader && (req.originalUrl.includes('handleRefreshToken') || !accessHeader)
+
+    if(useRefreshToken) {
        try {
-        const refreshToken = req.headers[HEADER.REFRESHTOKEN]
+        const refreshToken = refreshHeader
         const decodeUser = JWT.verify(refreshToken, keyStore.privateKey)
-        if(userId !== decodeUser.userId) throw new AuthFailureError('Invalid User')
+        if(!sameUser(userId, decodeUser.userId)) throw new AuthFailureError('Invalid User')
 
         req.keyStore = keyStore
         req.user = decodeUser
         req.refreshToken = refreshToken
         return next()
        } catch (error) {
-        throw error
+        if (error instanceof AuthFailureError) throw error
+        throw new AuthFailureError('Token không hợp lệ, hãy login lại và dùng accessToken mới')
        }
     }
-    const accessToken = req.headers[HEADER.AUTHORIZATION]
+    const accessToken = accessHeader
     if(!accessToken) throw new AuthFailureError('Invalid request')
     
     try {
         const decodeUser = JWT.verify(accessToken, keyStore.privateKey)
-        if(userId !== decodeUser.userId) throw new AuthFailureError('Invalid User')
+        if(!sameUser(userId, decodeUser.userId)) throw new AuthFailureError('Invalid User')
         req.keyStore = keyStore,
         req.user = decodeUser // {userId, email}
         return next()
     } catch (error) {
-        throw error
+        if (error instanceof AuthFailureError) throw error
+        throw new AuthFailureError('Token không hợp lệ, hãy login lại và dùng accessToken mới')
     }
 })
 

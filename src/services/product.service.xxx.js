@@ -73,7 +73,7 @@ class ProductFactory {
             sort, 
             page, 
             filter, 
-            select: ['product_name', 'product_price', 'product_thumd'] 
+            select: ['id', 'product_name', 'product_price', 'product_thumb', 'product_shop'] 
         })
     }
 
@@ -97,7 +97,7 @@ class Product {
 
     // create new product
     async createProduct(product_id) {
-        const newProduct = await product.create({ ...this, _id: product_id })
+        const newProduct = await product.create({ ...this })
         if (newProduct) {
             // add product stock in inventory collection
             await insertInventory({

@@ -9,6 +9,7 @@ const { product } = require('./product.model')
 require('./keytoken.model')
 require('./inventory.model')
 require('./discount.model')
+require('./cart.model')
 
 product.belongsTo(Shop, { foreignKey: 'product_shop', targetKey: 'id' })
 

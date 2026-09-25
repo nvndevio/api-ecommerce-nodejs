@@ -37,50 +37,50 @@ class Product {
     }
 
     // create new product
-    async createProduct(product_id) {
-        return await product.create({ ...this, _id: product_id })
-    }
-}
-
-// define sub-class for different product types Clothing
-class Clothing extends Product {
     async createProduct() {
-        const newClothing = await clothing.create(this.product_attributes)
-        if (!newClothing) throw new BadRequestError('Create new clothing error')
-        const newProduct = await super.createProduct()
-        if (!newProduct) throw new BadRequestError('Create new product error')
-            
+        const newProduct = await product.create({ ...this })
         return newProduct
     }
 }
 
-// define sub-class for different product types Electronic
+class Clothing extends Product {
+    async createProduct() {
+        const newProduct = await super.createProduct()
+        if (!newProduct) throw new BadRequestError('Create new product error')
+        const newClothing = await clothing.create({
+            ...this.product_attributes,
+            product_shop: this.product_shop,
+            product_id: newProduct.id,
+        })
+        if (!newClothing) throw new BadRequestError('Create new clothing error')
+        return newProduct
+    }
+}
+
 class Electronic extends Product {
     async createProduct() {
+        const newProduct = await super.createProduct()
+        if (!newProduct) throw new BadRequestError('Create new product error')
         const newElectronic = await electronic.create({
             ...this.product_attributes,
-            product_shop: this.product_shop
+            product_shop: this.product_shop,
+            product_id: newProduct.id,
         })
         if (!newElectronic) throw new BadRequestError('Create new electronic error')
-            
-        const newProduct = await super.createProduct(newElectronic._id)
-        if (!newProduct) throw new BadRequestError('Create new product error')
-
         return newProduct
     }
 }
 
 class Furniture extends Product {
     async createProduct() {
+        const newProduct = await super.createProduct()
+        if (!newProduct) throw new BadRequestError('Create new product error')
         const newFurniture = await furniture.create({
             ...this.product_attributes,
-            product_shop: this.product_shop
+            product_shop: this.product_shop,
+            product_id: newProduct.id,
         })
         if (!newFurniture) throw new BadRequestError('Create new furniture error')
-            
-        const newProduct = await super.createProduct(newFurniture._id)
-        if (!newProduct) throw new BadRequestError('Create new product error')
-
         return newProduct
     }
 }
