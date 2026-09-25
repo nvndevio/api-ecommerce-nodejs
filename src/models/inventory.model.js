@@ -1,38 +1,18 @@
-'use strict';
+'use strict'
 
-const { model, Schema, Types } = require('mongoose'); // Erase if already required
+const { DataTypes } = require('sequelize')
+const sequelize = require('../dbs/init.mysql')
 
-const DOCUMENT_NAME = 'Inventory'
-const COLLECTION_NAME = 'Inventories'
-
-// Declare the Schema of the Mongo model
-var inventorySchema = new Schema({
-    inven_productId:{
-        type: Schema.Types.ObjectId,
-        ref: 'Product',
-    },
-    inven_location: {
-        type: String,
-        default: 'unKnow'
-    },
-    inven_stock: {
-        type: Number,
-        required: true
-    },
-    inven_shopId: {
-        type: Schema.Types.ObjectId,
-        ref: 'Shop'
-    },
-    inven_reservations: {
-        type: Array,
-        default: []
-    }
+const inventory = sequelize.define('Inventory', {
+    id: { type: DataTypes.INTEGER.UNSIGNED, primaryKey: true, autoIncrement: true },
+    inven_productId: { type: DataTypes.INTEGER.UNSIGNED },
+    inven_location: { type: DataTypes.STRING(255), defaultValue: 'unKnow' },
+    inven_stock: { type: DataTypes.INTEGER, allowNull: false },
+    inven_shopId: { type: DataTypes.INTEGER.UNSIGNED },
+    inven_reservations: { type: DataTypes.JSON, defaultValue: [] },
 }, {
+    tableName: 'inventories',
     timestamps: true,
-    collation: COLLECTION_NAME
-});
+})
 
-//Export the model
-module.exports = {
-    inventory: model(DOCUMENT_NAME, inventorySchema)
-} 
+module.exports = { inventory }

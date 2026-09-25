@@ -38,13 +38,10 @@ class AccessService {
         const tokens = await createTokenPair({ userId, email }, keyStore.publicKey, keyStore.privateKey)
 
         // update token
-        await keyStore.updateOne({
-            $set: {
-                refreshToken: tokens.refreshToken,
-            },
-            $addToSet: {
-                refreshTokensUsed: refreshToken // da duoc su dung de lay token moi
-            }
+        await keyTokenService.rotateRefreshToken({
+            id: keyStore._id,
+            refreshToken: tokens.refreshToken,
+            usedToken: refreshToken,
         })
 
         return {
@@ -80,13 +77,10 @@ class AccessService {
         const tokens = await createTokenPair({ userI, email }, holderToken.publicKey, holderToken.privateKey)
 
         // update token
-        await holderToken.updateOne({
-            $set: {
-                refreshToken: tokens.refreshToken,
-            },
-            $addToSet: {
-                refreshTokensUsed: refreshToken // da duoc su dung de lay token moi
-            }
+        await keyTokenService.rotateRefreshToken({
+            id: holderToken._id,
+            refreshToken: tokens.refreshToken,
+            usedToken: refreshToken,
         })
 
         return {
@@ -111,7 +105,7 @@ class AccessService {
         if(!foundShop) throw new BadRequestError('Shop not registered')
         
         // 2.
-        const match = bcrypt.compare( password, foundShop.password )
+        const match = await bcrypt.compare( password, foundShop.password )
         if(!match) throw new AuthFailureError('Authentication error')
 
         // 3.
@@ -136,18 +130,20 @@ class AccessService {
     static signUp = async ({ name, email, password }) => {
 
         // step1: check email exits?
-        const hodelShop = await shopModel.findOne({ email}).lean();
+        const hodelShop = await shopModel.findOne({ where: { email } });
         if (hodelShop) {
             throw new BadRequestError('Error: Shop already registered!')
         }
 
         const passwordHash = await bcrypt.hash(password, 10);
-        const newShop = await shopModel.create({
+        const createdShop = await shopModel.create({
             name, 
             email, 
             password: passwordHash, 
             roles: [RoleShop.SHOP]
         })
+        const newShop = createdShop.get({ plain: true })
+        newShop._id = newShop.id
 
         if (newShop) {
             // create privateKey, publicKey

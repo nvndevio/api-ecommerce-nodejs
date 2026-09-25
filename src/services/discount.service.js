@@ -5,7 +5,6 @@ const {
     NotFoundError
 } = require('../core/error.response')
 
-const { convertToObjectIdMongodb } = require('../utils')
 const discount = require('../models/discount.model');
 const { 
     findAllDiscountCodesUnSelect,
@@ -43,15 +42,17 @@ class DiscountService {
 
         // create index for discount code
         const foundDiscount = await discount.findOne({
-            discount_code: code,
-            discount_shopId: convertToObjectIdMongodb
+            where: {
+                discount_code: code,
+                discount_shopId: shopId,
+            }
         })
         if(foundDiscount && foundDiscount.discount_is_active) {
             throw new BadRequestError('Discount code already exists!')
         }
 
         const newDiscount = await discount.create({
-            discount_name,
+            discount_name: name,
             discount_description: description,
             discount_type: type,
             discount_code: code,
@@ -81,22 +82,26 @@ class DiscountService {
         code, shopId, userId, limit, page
     }) {
         // create index for  discount_code 
-        const foundDiscount = await discount.findOne({
-            discount_code: code,
-            discount_shopId: convertToObjectIdMongodb(shopId)
-        }).lean()
+        const foundRow = await discount.findOne({
+            where: {
+                discount_code: code,
+                discount_shopId: shopId,
+            }
+        })
+        const foundDiscount = foundRow ? foundRow.get({ plain: true }) : null
 
         if(!foundDiscount || !foundDiscount.discount_is_active) {
             throw new NotFoundError('discount not exists!')
         }
 
         const { discount_applies_to, discount_product_ids } = foundDiscount
+        let products
         
         if(discount_applies_to === 'all') {
             // get all product
             products = await findAllProducts({
                 filter: {
-                    product_shop: convertToObjectIdMongodb(shopId),
+                    product_shop: shopId,
                     isPublished: true
                 },
                 limit: +limit,
@@ -133,7 +138,7 @@ class DiscountService {
             limit: +limit,
             page: +page,
             filter: {
-                discount_shopId: convertToObjectIdMongodb(shopId),
+                discount_shopId: shopId,
                 discount_is_active: true
             },
             select: ['discount_shopId', 'discount_name'],
@@ -152,7 +157,7 @@ class DiscountService {
             model: discount,
             filter: {
                 discount_code: codeId,
-                discount_shopId: convertToObjectIdMongodb(shopId),
+                discount_shopId: shopId,
             }
         })
 
@@ -210,9 +215,11 @@ class DiscountService {
 
     static async deleteDiscountCode({ codeId, shopId }) {
 
-        const deleted = await discount.findOneAndDelete({
-            discount_code: codeId,
-            discount_shopId: convertToObjectIdMongodb(shopId)
+        const deleted = await discount.destroy({
+            where: {
+                discount_code: codeId,
+                discount_shopId: shopId,
+            }
         })
 
         return deleted
@@ -224,20 +231,19 @@ class DiscountService {
             model: discount,
             filter: {
                 discount_code: codeId,
-                discount_shopId: convertToObjectIdMongodb(shopId)
+                discount_shopId: shopId
             }
         })
 
        if(!foundDiscount) throw new NotFoundError('Discount code not exists!')
 
-        const result = await discount.findByIdAndUpdate(foundDiscount._id, {
-            $pull: {
-                discount_users_used: userId,
-            },
-            $inc: {
-                discount_max_uses: 1,
-                discount_uses_count: -1
-            }
+        const users = (foundDiscount.discount_users_used || []).filter((user) => user !== userId && user?.userId !== userId)
+        const result = await discount.update({
+            discount_users_used: users,
+            discount_max_uses: Number(foundDiscount.discount_max_uses || 0) + 1,
+            discount_uses_count: Number(foundDiscount.discount_uses_count || 0) - 1,
+        }, {
+            where: { id: foundDiscount._id || foundDiscount.id }
         })
 
         return result

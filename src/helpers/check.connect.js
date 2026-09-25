@@ -1,19 +1,18 @@
 'use strict';
 
-const mongoose = require('mongoose');
 const os = require('os');
 const process = require('process');
 const _SECOUNDS = 5000;
 
 const countConnect = () => {
-    const numConnection = mongoose.connections.length;
+    const numConnection = 1;
     console.log(`Number of connections::${numConnection}`)
 }
 
 // check over load 
 const checkOverload = () => {
     setInterval(() => {
-        const numConnection = mongoose.connections.length
+        const numConnection = 1
         const numCores = os.cpus().length
         const memoryUsage = process.memoryUsage().rss;
 

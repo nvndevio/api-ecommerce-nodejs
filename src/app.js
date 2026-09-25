@@ -28,7 +28,7 @@ app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
 }))
 
 // init db
-require('./dbs/init.mongodb')
+require('./models')
 // const { countConnect, checkOverload } = require('./helpers/check.connect');
 // countConnect()
 // checkOverload()

@@ -1,14 +1,15 @@
 'use strict'
 
-const shopModel = require("../models/shop.model")
+const shopModel = require('../models/shop.model')
 
-const findByEmail = async ({ email, select = {
-            email: 1, password: 2, name: 1, status: 1, roles: 1
-        } 
-    }) => {
-    return await shopModel.findOne({ email }).select(select).lean()
+const findByEmail = async ({ email }) => {
+    const row = await shopModel.findOne({ where: { email } })
+    if (!row) return null
+    const plain = row.get({ plain: true })
+    plain._id = plain.id
+    return plain
 }
 
 module.exports = {
-    findByEmail
+    findByEmail,
 }

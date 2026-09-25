@@ -1,29 +1,16 @@
-'use strict';
+'use strict'
 
-const { model, Schema, Types } = require('mongoose'); // Erase if already required
+const { DataTypes } = require('sequelize')
+const sequelize = require('../dbs/init.mysql')
 
-const DOCUMENT_NAME = 'Apikey'
-const COLLECTION_NAME = 'Apikeys'
-// Declare the Schema of the Mongo model
-var apiKeySchema = new Schema({
-    key:{
-        type:String,
-        required:true,
-        unique:true,
-    },
-    status:{
-        type:Boolean,
-        default:true,
-    },
-    permissions:{
-        type:[String],
-        required:true,
-        enum:['0000', '1111', '2222'],
-    },
+const ApiKey = sequelize.define('ApiKey', {
+    id: { type: DataTypes.INTEGER.UNSIGNED, primaryKey: true, autoIncrement: true },
+    key: { type: DataTypes.STRING(255), allowNull: false, unique: true },
+    status: { type: DataTypes.BOOLEAN, defaultValue: true },
+    permissions: { type: DataTypes.JSON, allowNull: false, defaultValue: [] },
 }, {
+    tableName: 'apikeys',
     timestamps: true,
-    collection: COLLECTION_NAME,
-});
+})
 
-//Export the model
-module.exports = model(DOCUMENT_NAME, apiKeySchema);
+module.exports = ApiKey

@@ -1,81 +1,31 @@
-'use strict';
+'use strict'
 
-const { model, Schema, Types } = require('mongoose'); // Erase if already required
+const { DataTypes } = require('sequelize')
+const sequelize = require('../dbs/init.mysql')
 
-const DOCUMENT_NAME = 'Discount'
-const COLLECTION_NAME = 'discounts'
-
-// Declare the Schema of the Mongo model
-var discountSchema = new Schema({
-    discount_name:{
-        type: String,
-        required: true
-    },
-    discount_description: {
-        type: String,
-        required: true
-    },
-    discount_type: {
-        type: String,
-        default: 'fixed_amount'
-    }, // percentage
-    discount_value: {
-        type: Number,
-        required: true
-    }, // 10.000, 10
-    discount_code: {
-        type: String, 
-        required: true
-    },
-    discount_start_date: {
-        type: Date, 
-        required: true
-    }, // ngay bac dau
-    discount_end_date: {
-        type: Date,
-        required: true
-    }, // ngay ket thuc
-    discount_max_uses: {
-        type: Number,
-        required: true
-    }, // so luong discount dc ap dung
-    discount_uses_count: {
-        type: Number, 
-        required: true
-    }, // so discount duoc su dung
-    discount_users_used: {
-        type: Array, 
-        default: []
-    }, // ai da su dung
-    discount_max_uses_per_user: {
-        type: Number, 
-        required: true
-    }, // so luong cho phep toi da dung
-    discount_min_order_value: {
-        type: Number, 
-        required: true
-    },
-    discount_shopId: {
-        type: Schema.Types.ObjectId,
-        ref: 'Shop'
-    },
-    discount_is_active: {
-        type: Boolean,
-        default: true
-    },
-    discount_applies_to: {
-        type: String,
-        required: true,
-        enum: ['all', 'specific']
-    },
-    discount_product_ids: {
-        type: Array, 
-        default: []
-    },// so san pham duoc ap dung
+const Discount = sequelize.define('Discount', {
+    id: { type: DataTypes.INTEGER.UNSIGNED, primaryKey: true, autoIncrement: true },
+    _id: { type: DataTypes.VIRTUAL, get() { return this.getDataValue('id') } },
+    discount_name: { type: DataTypes.STRING(255), allowNull: false },
+    discount_description: { type: DataTypes.TEXT, allowNull: false },
+    discount_type: { type: DataTypes.STRING(50), defaultValue: 'fixed_amount' },
+    discount_value: { type: DataTypes.DOUBLE, allowNull: false },
+    discount_code: { type: DataTypes.STRING(100), allowNull: false },
+    discount_start_date: { type: DataTypes.DATE, allowNull: false },
+    discount_end_date: { type: DataTypes.DATE, allowNull: false },
+    discount_max_uses: { type: DataTypes.INTEGER, allowNull: false },
+    discount_uses_count: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
+    discount_users_used: { type: DataTypes.JSON, defaultValue: [] },
+    discount_max_uses_per_user: { type: DataTypes.INTEGER, allowNull: false },
+    discount_min_order_value: { type: DataTypes.DOUBLE, allowNull: false, defaultValue: 0 },
+    discount_max_value: { type: DataTypes.DOUBLE },
+    discount_shopId: { type: DataTypes.INTEGER.UNSIGNED },
+    discount_is_active: { type: DataTypes.BOOLEAN, defaultValue: true },
+    discount_applies_to: { type: DataTypes.ENUM('all', 'specific'), allowNull: false },
+    discount_product_ids: { type: DataTypes.JSON, defaultValue: [] },
 }, {
+    tableName: 'discounts',
     timestamps: true,
-    collation: COLLECTION_NAME
-});
+})
 
-//Export the model
-module.exports = model(DOCUMENT_NAME, discountSchema);
+module.exports = Discount

@@ -5,7 +5,7 @@ API bán hàng (shop, sản phẩm, mã giảm giá) viết bằng Node.js và E
 ## Yêu cầu
 
 - Node.js
-- MongoDB đang chạy ở `localhost:27017` (database mặc định: `shopDEV`)
+- MySQL đang chạy ở `127.0.0.1:3306` (database `shopDEV`, xem bằng Navicat)
 
 ## Cài đặt
 
@@ -33,14 +33,23 @@ Xem và thử API trên Swagger: http://localhost:3056/api-docs
 
 Mọi route `/v1/api` cần header `x-api-key`. Route cần đăng nhập thêm `x-client-id` và `authorization`. Refresh token gửi qua `x-rtoken-id`.
 
-## Biến môi trường (tùy chọn)
+## MySQL và Navicat
 
-Tạo file `.env` ở thư mục gốc nếu muốn đổi cổng hoặc MongoDB:
+Trong Navicat tạo kết nối MySQL:
+
+- Host: `127.0.0.1`
+- Port: `3306`
+- User / Password: cùng tài khoản trong file `.env`
 
 ```env
 PORT=3056
-NODE_ENV=dev
-DEV_DB_HOST=localhost
-DEV_DB_PORT=27017
-DEV_DB_NAME=shopDEV
+MYSQL_HOST=127.0.0.1
+MYSQL_PORT=3306
+MYSQL_DATABASE=shopDEV
+MYSQL_USER=root
+MYSQL_PASSWORD=mật_khẩu_navicat
 ```
+
+Điền `MYSQL_PASSWORD` bằng mật khẩu bạn đang dùng trong Navicat, rồi chạy lại `npm run dev`. Lần chạy thành công sẽ tạo database `shopDEV` và các bảng (`shops`, `products`, `discounts`, ...). Mở database đó trong Navicat để xem dữ liệu.
+
+API key local được tạo sẵn nếu bảng `apikeys` trống: header `x-api-key: dev-api-key`.

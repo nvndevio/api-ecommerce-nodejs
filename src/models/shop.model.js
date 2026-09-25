@@ -1,45 +1,20 @@
-'use strict';
+'use strict'
 
-const { verify } = require('crypto');
-// !dmbg
-const { model, Schema, Types } = require('mongoose'); 
+const { DataTypes } = require('sequelize')
+const sequelize = require('../dbs/init.mysql')
 
-const DOCUMENT_NAME = 'Shop'
-const COLLECTION_NAME = 'Shops'
-
-// Declare the Schema of the Mongo model
-var shopSchema = new Schema({
-    name:{
-        type:String,
-        trim:true,
-        maxLength:150,
-    },
-    email:{
-        type:String,
-        unique:true,
-        trim:true,
-    },
-    password:{
-        type:String,
-        required:true,
-    },
-    status: {
-        type: String,
-        enum: ['active', 'inactive'],
-        default: 'inactive',
-    },
-    verify: {
-        type: Schema.Types.Boolean,
-        default: false,
-    },
-    roles: {
-        type: Array,
-        default: []
-    }
+const Shop = sequelize.define('Shop', {
+    id: { type: DataTypes.INTEGER.UNSIGNED, primaryKey: true, autoIncrement: true },
+    _id: { type: DataTypes.VIRTUAL, get() { return this.getDataValue('id') } },
+    name: { type: DataTypes.STRING(150) },
+    email: { type: DataTypes.STRING(255), unique: true },
+    password: { type: DataTypes.STRING(255), allowNull: false },
+    status: { type: DataTypes.ENUM('active', 'inactive'), defaultValue: 'inactive' },
+    verify: { type: DataTypes.BOOLEAN, defaultValue: false },
+    roles: { type: DataTypes.JSON, defaultValue: [] },
 }, {
-    timestamp: true,
-    collection: COLLECTION_NAME
-});
+    tableName: 'shops',
+    timestamps: true,
+})
 
-//Export the model
-module.exports = model(DOCUMENT_NAME, shopSchema);
+module.exports = Shop

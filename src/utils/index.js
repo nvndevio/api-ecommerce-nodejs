@@ -1,10 +1,9 @@
 'use strict';
 
 const _ = require('lodash');
-const { Types } = require('mongoose')
 
 const convertToObjectIdMongodb = (id) => {
-    return new Types.ObjectId(id)
+    return id
 }
 
 const getInfoData = ({ fileds = [], object = {} }) => {

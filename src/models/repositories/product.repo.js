@@ -1,95 +1,116 @@
-"use strict";
+'use strict'
 
-const { product, electronic, clothing, furniture } = require('../../models/product.model')
-const { Types } = require('mongoose')
-const { getSelectData, unGetSelectData } = require('../../utils/index')
+const { Op } = require('sequelize')
+const Shop = require('../../models/shop.model')
+const { product, clothing, electronic, furniture } = require('../../models/product.model')
 
-const findAllDraftsForShop = async( {query, limit, skip} ) => {
+const childModels = new Set([clothing, electronic, furniture])
+
+const toPlain = (row) => {
+    if (!row) return null
+    const plain = row.get({ plain: true })
+    plain._id = plain.id
+    return plain
+}
+
+const toWhere = (filter = {}) => {
+    const where = {}
+    Object.entries(filter).forEach(([key, value]) => {
+        const column = key === '_id' ? 'id' : key
+        if (value && typeof value === 'object' && Array.isArray(value.$in)) {
+            where[column] = { [Op.in]: value.$in }
+        } else {
+            where[column] = value
+        }
+    })
+    return where
+}
+
+const onlyColumns = (model, data) => {
+    const allowed = new Set(Object.keys(model.rawAttributes))
+    return Object.fromEntries(Object.entries(data).filter(([key]) => allowed.has(key) && key !== 'id' && key !== '_id'))
+}
+
+const findAllDraftsForShop = async ({ query, limit, skip }) => {
     return await queryProduct({ query, limit, skip })
 }
 
-const findAllPublishForShop = async({ query, limit, skip }) => {
+const findAllPublishForShop = async ({ query, limit, skip }) => {
     return await queryProduct({ query, limit, skip })
 }
 
-const searchProductByUser = async({keySearch}) => {
-    const regexSearch = new RegExp(keySearch)
-    const results = await product.find({
-        isPublished: true,
-        $text: { $search: regexSearch },
-    }, {score: { $meta: 'textScore' }})
-    .sort({ score: { $meta: 'textScore' } })
-    .lean()
-
-    return results;
+const searchProductByUser = async ({ keySearch }) => {
+    const rows = await product.findAll({
+        where: {
+            isPublished: true,
+            [Op.or]: [
+                { product_name: { [Op.like]: `%${keySearch}%` } },
+                { product_description: { [Op.like]: `%${keySearch}%` } },
+            ],
+        },
+    })
+    return rows.map(toPlain)
 }
 
-const publishProductByShop = async ({product_shop, product_id}) => {
-    const foundShop = await product.findOne({
-        product_shop: new Types.ObjectId(product_shop),
-        _id: new Types.ObjectId(product_id)
-    })
-    if( !foundShop ) return null
-
-    foundShop.isDraft = false
-    foundShop.isPublished = true
-    
-    const { modifiedCount } = await foundShop.updateOne(foundShop)
-
-    return modifiedCount
+const publishProductByShop = async ({ product_shop, product_id }) => {
+    const [count] = await product.update(
+        { isDraft: false, isPublished: true },
+        { where: { product_shop, id: product_id } }
+    )
+    return count
 }
 
-const unPublishProductByShop = async() => {
-    const foundShop = await product.findOne({
-        product_shop: new Types.ObjectId(product_shop),
-        _id: new Types.ObjectId(product_id)
-    })
-    if( !foundShop ) return null
-
-    foundShop.isDraft = true
-    foundShop.isPublished = false
-    
-    const { modifiedCount } = await foundShop.updateOne(foundShop)
-
-    return modifiedCount
+const unPublishProductByShop = async ({ product_shop, product_id }) => {
+    const [count] = await product.update(
+        { isDraft: true, isPublished: false },
+        { where: { product_shop, id: product_id } }
+    )
+    return count
 }
 
 const findAllProducts = async ({ limit, sort, page, filter, select }) => {
-    const skip = (page - 1) * limit;
-    const sortBy = sort === 'ctime' ? {_id: -1} : {_id: 1}
-    const products = await product.find( filter )
-    .sort(sortBy)
-    .skip(skip)
-    .limit(limit)
-    .select(getSelectData(select))
-    .lean()
-
-    return products;
-}
-
-const findProduct = async ({ product_id, unSelect }) => {
-    return await product.findById(product_id).select(unGetSelectData(unSelect))
-}
-
-const updateProductById = async({
-    productId,
-    bodyUpdate,
-    model,
-    isNew = true
-}) => {
-    return await model.findByIdAndUpdate(productId, bodyUpdate, {
-        new: isNew
+    const skip = (page - 1) * limit
+    const order = sort === 'ctime' ? [['id', 'DESC']] : [['id', 'ASC']]
+    const attributes = (select || []).filter((field) => product.rawAttributes[field])
+    const rows = await product.findAll({
+        where: toWhere(filter),
+        order,
+        offset: skip,
+        limit: Number(limit),
+        attributes: attributes.length ? attributes : undefined,
     })
+    return rows.map(toPlain)
 }
 
-const queryProduct = async({ query, limit, skip }) => {
-    return await product.find(query).
-    populate('product_shop', 'name email -_id')
-    .sort({ updateAt: -1 })
-    .skip( skip )
-    .limit( limit )
-    .lean()
-    .exec()
+const findProduct = async ({ product_id }) => {
+    const row = await product.findByPk(product_id)
+    return toPlain(row)
+}
+
+const updateProductById = async ({ productId, bodyUpdate, model }) => {
+    const data = onlyColumns(model, bodyUpdate)
+    const where = childModels.has(model) ? { product_id: productId } : { id: productId }
+    await model.update(data, { where })
+    const row = await model.findOne({ where })
+    return toPlain(row)
+}
+
+const queryProduct = async ({ query, limit, skip }) => {
+    const rows = await product.findAll({
+        where: toWhere(query),
+        include: [{ model: Shop, attributes: ['name', 'email'] }],
+        order: [['updatedAt', 'DESC']],
+        offset: Number(skip) || 0,
+        limit: Number(limit) || 50,
+    })
+    return rows.map((row) => {
+        const plain = toPlain(row)
+        if (plain.Shop) {
+            plain.product_shop = { name: plain.Shop.name, email: plain.Shop.email }
+            delete plain.Shop
+        }
+        return plain
+    })
 }
 
 module.exports = {
@@ -100,5 +121,5 @@ module.exports = {
     searchProductByUser,
     findAllProducts,
     findProduct,
-    updateProductById
+    updateProductById,
 }
