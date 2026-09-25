@@ -3,15 +3,28 @@ const compression = require('compression');
 const express = require('express');
 const { default: helmet } = require('helmet');
 const morgan = require('morgan');
+const swaggerUi = require('swagger-ui-express');
+const swaggerSpec = require('./configs/swagger');
 const app = express();
 
 // init middlewares
 app.use(morgan("dev"))
-app.use(helmet())
+app.use(helmet({
+    contentSecurityPolicy: false,
+    crossOriginEmbedderPolicy: false,
+}))
 app.use(compression())
 app.use(express.json())
 app.use(express.urlencoded({
     extended: true,
+}))
+
+app.get('/api-docs.json', (req, res) => {
+    res.setHeader('Content-Type', 'application/json')
+    res.send(swaggerSpec)
+})
+app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
+    explorer: true,
 }))
 
 // init db

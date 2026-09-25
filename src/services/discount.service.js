@@ -37,7 +37,6 @@ class DiscountService {
         //     throw new BadRequestError('Discount code has expried!')
         // }
 
-s
         if(new Date(start_date) >= new Date(end_date)) {
             throw new BadRequestError('Start date must be before end date')
         }
