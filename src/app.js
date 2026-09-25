@@ -25,6 +25,13 @@ app.get('/api-docs.json', (req, res) => {
 })
 app.use('/api-docs', swaggerUi.serve, swaggerUi.setup(swaggerSpec, {
     explorer: true,
+    swaggerOptions: {
+        persistAuthorization: true,
+        preauthorizeApiKey: {
+            authDefinitionKey: 'ApiKeyAuth',
+            apiKeyValue: 'dev-api-key',
+        },
+    },
 }))
 
 // init db

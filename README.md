@@ -53,3 +53,11 @@ MYSQL_PASSWORD=mật_khẩu_navicat
 Điền `MYSQL_PASSWORD` bằng mật khẩu bạn đang dùng trong Navicat, rồi chạy lại `npm run dev`. Lần chạy thành công sẽ tạo database `shopDEV` và các bảng (`shops`, `products`, `discounts`, ...). Mở database đó trong Navicat để xem dữ liệu.
 
 API key local được tạo sẵn nếu bảng `apikeys` trống: header `x-api-key: dev-api-key`.
+
+Tạo tài khoản shop test:
+
+```bash
+npm run seed
+```
+
+Đăng nhập bằng `shop@example.com` / `123456`. Trên Swagger bấm **Authorize** và điền `x-api-key` = `dev-api-key` trước khi gọi API, nếu không server trả 403.
