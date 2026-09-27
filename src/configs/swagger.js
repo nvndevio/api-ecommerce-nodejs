@@ -27,6 +27,7 @@ const swaggerSpec = {
         { name: 'Discount', description: 'Mã giảm giá' },
         { name: 'Cart', description: 'Giỏ hàng' },
         { name: 'Checkout', description: 'Thanh toán' },
+        { name: 'Inventory', description: 'Tồn kho' },
     ],
     components: {
         securitySchemes: {
@@ -513,6 +514,30 @@ const swaggerSpec = {
                     },
                 },
                 responses: { 200: { description: 'Checkout review success' } },
+            },
+        },
+        '/v1/api/inventory': {
+            post: {
+                tags: ['Inventory'],
+                summary: 'Nhập thêm tồn kho cho sản phẩm của shop',
+                security: [{ ApiKeyAuth: [], ClientId: [], AccessToken: [] }],
+                requestBody: {
+                    required: true,
+                    content: {
+                        'application/json': {
+                            schema: {
+                                type: 'object',
+                                required: ['productId', 'stock'],
+                                properties: {
+                                    productId: { type: 'number', example: 1 },
+                                    stock: { type: 'number', example: 10 },
+                                    location: { type: 'string', example: '15 Tran Van Tuyen, Q9, TP.HCM' },
+                                },
+                            },
+                        },
+                    },
+                },
+                responses: { 200: { description: 'Add stock to inventory successfully' } },
             },
         },
     },

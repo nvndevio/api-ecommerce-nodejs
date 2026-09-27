@@ -13,6 +13,7 @@ const cart = sequelize.define('Cart', {
     },
     cart_count_product: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 0 },
     cart_userId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
+    cart_products: { type: DataTypes.JSON, allowNull: false, defaultValue: [] },
 }, {
     tableName: 'carts',
     timestamps: true,
@@ -20,23 +21,6 @@ const cart = sequelize.define('Cart', {
     updatedAt: 'modifiedOn',
 })
 
-const cartProduct = sequelize.define('CartProduct', {
-    id: { type: DataTypes.INTEGER.UNSIGNED, primaryKey: true, autoIncrement: true },
-    cart_id: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
-    productId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
-    shopId: { type: DataTypes.INTEGER.UNSIGNED, allowNull: false },
-    quantity: { type: DataTypes.INTEGER, allowNull: false, defaultValue: 1 },
-    name: { type: DataTypes.STRING(255), allowNull: false },
-    price: { type: DataTypes.DOUBLE, allowNull: false },
-}, {
-    tableName: 'cart_products',
-    timestamps: false,
-})
-
-cart.hasMany(cartProduct, { foreignKey: 'cart_id', as: 'cart_products', onDelete: 'CASCADE' })
-cartProduct.belongsTo(cart, { foreignKey: 'cart_id' })
-
 module.exports = {
     cart,
-    cartProduct,
 }

@@ -10,6 +10,7 @@ require('./keytoken.model')
 require('./inventory.model')
 require('./discount.model')
 require('./cart.model')
+require('./order.model')
 
 product.belongsTo(Shop, { foreignKey: 'product_shop', targetKey: 'id' })
 

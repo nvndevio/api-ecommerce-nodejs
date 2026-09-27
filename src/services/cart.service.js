@@ -15,43 +15,49 @@ const {
     BadRequestError
 } = require('../core/error.response')
 
-const { cart, cartProduct } = require('../models/cart.model')
+const { cart } = require('../models/cart.model')
 const { getProductById } = require('../models/repositories/product.repo')
+
+const productsOf = (userCart) => {
+    const items = userCart.get('cart_products')
+    return Array.isArray(items) ? items : []
+}
 
 const toPlain = (row) => {
     if (!row) return null
     const plain = row.get({ plain: true })
     plain._id = plain.id
+    if (!Array.isArray(plain.cart_products)) plain.cart_products = []
     return plain
 }
 
 const findActiveCart = (userId) => {
     return cart.findOne({
         where: { cart_userId: userId, cart_state: 'active' },
-        include: [{ model: cartProduct, as: 'cart_products' }],
     })
 }
 
-const refreshCount = async (userCart) => {
-    const items = await cartProduct.findAll({ where: { cart_id: userCart.id } })
-    const count = items.reduce((total, item) => total + item.quantity, 0)
-    await userCart.update({ cart_count_product: count })
+const saveProducts = async (userCart, items) => {
+    const count = items.reduce((total, item) => total + Number(item.quantity || 0), 0)
+    await userCart.update({
+        cart_products: items,
+        cart_count_product: count,
+    })
 }
 
 class CartService {
     static async createUserCart({ userId, product }) {
-        const userCart = await cart.create({
+        await cart.create({
             cart_userId: userId,
             cart_state: 'active',
             cart_count_product: product.quantity || 1,
-        })
-        await cartProduct.create({
-            cart_id: userCart.id,
-            productId: product.productId,
-            shopId: product.shopId,
-            quantity: product.quantity || 1,
-            name: product.name,
-            price: product.price,
+            cart_products: [{
+                productId: product.productId,
+                shopId: product.shopId,
+                quantity: product.quantity || 1,
+                name: product.name,
+                price: product.price,
+            }],
         })
         return this.getListUserCart({ userId })
     }
@@ -61,14 +67,17 @@ class CartService {
         const userCart = await findActiveCart(userId)
         if (!userCart) throw new NotFoundError('Cart not found')
 
-        const item = userCart.cart_products.find((row) => String(row.productId) === String(productId))
-        if (!item) throw new NotFoundError('Product not found in cart')
+        const items = productsOf(userCart)
+        const index = items.findIndex((row) => String(row.productId) === String(productId))
+        if (index < 0) throw new NotFoundError('Product not found in cart')
 
-        const nextQuantity = item.quantity + quantity
-        if (nextQuantity <= 0) await item.destroy()
-        else await item.update({ quantity: nextQuantity })
+        const nextQuantity = items[index].quantity + quantity
+        const nextItems = items.filter((_, i) => i !== index)
+        if (nextQuantity > 0) {
+            nextItems.splice(index, 0, { ...items[index], quantity: nextQuantity })
+        }
 
-        await refreshCount(userCart)
+        await saveProducts(userCart, nextItems)
         return this.getListUserCart({ userId })
     }
 
@@ -78,17 +87,16 @@ class CartService {
             return await this.createUserCart({ userId, product })
         }
 
-        const existed = userCart.cart_products.find((row) => String(row.productId) === String(product.productId))
+        const items = productsOf(userCart)
+        const existed = items.find((row) => String(row.productId) === String(product.productId))
         if (!existed) {
-            await cartProduct.create({
-                cart_id: userCart.id,
+            await saveProducts(userCart, [...items, {
                 productId: product.productId,
                 shopId: product.shopId,
                 quantity: product.quantity || 1,
                 name: product.name,
                 price: product.price,
-            })
-            await refreshCount(userCart)
+            }])
             return this.getListUserCart({ userId })
         }
 
@@ -123,17 +131,15 @@ class CartService {
         const userCart = await findActiveCart(userId)
         if (!userCart) throw new NotFoundError('Cart not found')
 
-        const deleted = await cartProduct.destroy({
-            where: { cart_id: userCart.id, productId },
-        })
-        await refreshCount(userCart)
-        return deleted
+        const items = productsOf(userCart)
+        const nextItems = items.filter((row) => String(row.productId) !== String(productId))
+        await saveProducts(userCart, nextItems)
+        return items.length - nextItems.length
     }
 
     static async getListUserCart({ userId }) {
         const row = await cart.findOne({
             where: { cart_userId: Number(userId) },
-            include: [{ model: cartProduct, as: 'cart_products' }],
         })
         return toPlain(row)
     }
